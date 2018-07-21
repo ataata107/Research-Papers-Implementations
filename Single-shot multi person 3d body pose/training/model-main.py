@@ -160,8 +160,64 @@ def convolutional_block(X, f, filters, stage, block, s=2):
     params['out'] = A
     return A, params
 
+def id1(X, f, filters, stage, block, s=2):
+    """
+    Implementing a ResNet convolutional block with shortcut path
+    passing over 3 Conv Layers having different sizes
+    @params
+    X - input tensor of shape (m, in_H, in_W, in_C)
+    f - size of middle layer filter
+    filters - tuple of number of filters in 3 layers
+    stage - used to name the layers
+    block - used to name the layers
+    s - strides used in first layer of convolutional block
+    @returns
+    A - Output of convolutional_block
+    params - Params used in convolutional block
+    """
 
-def ResNet50(input_shape=[224, 224, 3], classes=2):
+    conv_name = 'res' + str(stage) + block + '_branch'
+    bn_name = 'bn' + str(stage) + block + '_branch'
+
+    l1_f, l2_f, l3_f = filters
+
+    params = {}
+    #print(X.shape)
+    A1, params[conv_name+'2a'] = conv2D(X, filters=l1_f, k_size=(1, 1), strides=(s, s),
+                                        padding='VALID', name=conv_name+'2a')
+    #print(A1.shape)
+    A1_bn = batch_norm(A1, name=bn_name+'2a')
+    A1_act = tf.nn.relu(A1_bn)
+    params[conv_name+'2a']['bn'] = A1_bn
+    params[conv_name+'2a']['act'] = A1_act
+    #print(A1_act.shape)
+    A2, params[conv_name+'2b'] = conv2D(A1_act, filters=l2_f, k_size=(f, f), strides=(1, 1),
+                                        padding='SAME', name=conv_name+'2b')
+    #print(A2.shape)
+    A2_bn = batch_norm(A2, name=bn_name+'2b')
+    A2_act = tf.nn.relu(A2_bn)
+    params[conv_name+'2b']['bn'] = A2_bn
+    params[conv_name+'2b']['act'] = A2_act
+    #print(A2_act.shape)
+    A3, params[conv_name+'2c'] = conv2D(A2_act, filters=l3_f, k_size=(f, f), strides=(1, 1),
+                                        padding='SAME', name=conv_name+'2c')
+    #print(A3.shape)
+    A3_bn=batch_norm(A3, name=bn_name+'2c')
+    params[conv_name+'2c']['bn'] = A3_bn
+
+    #A_, params[conv_name+'1'] = conv2D(X, filters=l3_f, k_size=(1, 1), strides=(s, s),
+                                       #padding='VALID', name=conv_name+'1')
+    #A_bn_ = batch_norm(A_, name=bn_name+'1')
+
+    #A3_add = tf.add(A3_bn, A_bn_)
+    A = tf.nn.relu(A3_bn)
+    #params[conv_name+'2c']['add'] = A3_add
+    #params[conv_name+'1']['bn'] = A_bn_
+    params['out'] = A
+    return A, params
+
+
+def ResNet50(input_shape=[484, 484, 3], classes=2):
 
     input_shape=[None]+ input_shape
     params={}
@@ -224,7 +280,17 @@ def ResNet50(input_shape=[224, 224, 3], classes=2):
                                                       stage=4, block='e')
     A_4_ib5, params['stage4']['ib5'] = identity_block(A_4_ib4, 3, [256, 256, 1024],
                                                       stage=4, block='f')
-
+    #print(A_4_ib5.shape)
+    #Branch1 
+    params['stage5']={}
+    A_5_cb, params['stage5']['cb'] = convolutional_block(A_4_ib5, 3, [512, 512, 1024],
+                                                         stage=5, block='a', s=1)
+    print(A_5_cb.shape) 
+    A_5_ib1,params['stage5']['ib1'] = id1(A_5_cb, 3, [256, 256, 256],
+                                                         stage=5, block='b', s=1)
+    print(A_5_ib1.shape)   
+    
+    
     # Stage 5
     params['stage5'] = {}
     A_5_cb, params['stage5']['cb'] = convolutional_block(A_4_ib5, 3, [512, 512, 2048],
