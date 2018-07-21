@@ -170,6 +170,7 @@ def ResNet50(input_shape=[64, 64, 3], classes=2):
     params['zero_pad'] = X
 
     # Stage 1
+    
     params['stage1'] = {}
     A_1, params['stage1']['conv'] = conv2D(X, filters=64, k_size=(7, 7), strides=(2, 2),
                                            padding='VALID', name='conv1')
