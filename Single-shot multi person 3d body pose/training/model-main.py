@@ -417,7 +417,7 @@ def ResNet50(input_shape=[484, 484, 3], classes=2):
     #print(A_5_ib1.shape)
     A_5_ib2,params['stage5']['ib2'] = id2(A_5_ib1, 3, [128, 128, 57],
                                                          stage=5, block='c', s=2)
-    print(A_5_ib2.shape)
+    #print(A_5_ib2.shape)
     #Branch 1 output the slice
     A_slice = tf.split(A_5_ib2,2,axis=1)
     #print(A_slice)
@@ -442,15 +442,23 @@ def ResNet50(input_shape=[484, 484, 3], classes=2):
                                                       stage=7, block='c')
     #print(A_7_ib2.shape)
     A_7_con = tf.concat([A_7_ib2,A_5_ib2],-1)
-    # Average Pooling
-    A_avg_pool = tf.nn.avg_pool(A_5_ib2, ksize=(1, 2, 2, 1), strides=(1, 2, 2, 1),
-                                padding='VALID', name='avg_pool')
-    params['avg_pool'] = A_avg_pool
+    #Stage 8
+    params['stage8']={}
+    A_8_cb, params['stage8']['cb'] = convolutional_block(A_7_con, 3, [512, 512, 1024],
+                                                         stage=8, block='a', s=1)
+    A_8_ib1,params['stage5']['ib1'] = id1(A_8_cb, 3, [256, 256, 256],
+                                                         stage=8, block='b', s=1)
+    A_8_ib2,params['stage5']['ib2'] = id2(A_8_ib1, 5, [128, 128, 84],
+                                                         stage=8, block='c', s=2)
+
+    #Branch 2 output the slice
+    A_slice2 = tf.split(A_8_ib2,2,axis=1)
+    A_out = (A_slice2,A_slice)
     #print(A_avg_pool.shape)
     # Output Layer
-    A_flat = flatten(A_avg_pool)
-    params['flatten'] = A_flat
-    A_out, params['out'] = dense(A_flat, classes, name='fc'+str(classes))
+    #A_flat = flatten(A_avg_pool)
+    #params['flatten'] = A_flat
+    #A_out, params['out'] = dense(A_flat, classes, name='fc'+str(classes))
     #print(A_out.shape)
     return A_out, params
 
