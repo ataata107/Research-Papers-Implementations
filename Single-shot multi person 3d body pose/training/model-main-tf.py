@@ -451,6 +451,7 @@ def ResNet50(input_shape=[484, 484, 3], classes=2):
     A_8_ib2,params['stage5']['ib2'] = id2(A_8_ib1, 5, [128, 128, 84],
                                                          stage=8, block='c', s=2)
 
+    print(A_8_ib2.shape)
     #Branch 2 output the slice
     A_slice2 = tf.split(A_8_ib2,2,axis=1)
     A_out = (A_slice2,A_slice)
