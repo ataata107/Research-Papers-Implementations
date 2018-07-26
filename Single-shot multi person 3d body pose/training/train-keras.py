@@ -28,6 +28,53 @@ max_iter = 200000 # 600000
 weights_best_file = "weights.best.h5"
 training_log = "training.csv"
 logs_dir = "./logs"
+from_resnet = {
+    'conv1_1': 'conv1',
+    'conv1_2': 'res2a_branch2a',
+    'conv2_1': 'res2a_branch2b',
+    'conv2_2': 'res2a_branch2c',
+    'conv3_1': 'res2a_branch1',
+    'conv3_2': 'res2b_branch2a',
+    'conv3_3': 'res2b_branch2b',
+    'conv3_4': 'res2b_branch2c',
+    'conv4_1': 'res2c_branch2a',
+    'conv4_2': 'res2c_branch2b',
+    'conv5': 'res2c_branch2c',
+    'conv6': 'res3a_branch2a',
+    'conv7': 'res3a_branch2b',
+    'conv8': 'res3a_branch2c',
+    'conv9': 'res3a_branch1',
+    'conv10': 'res3b_branch2a',
+    'conv11': 'res3b_branch2b',
+    'conv12': 'res3b_branch2c',
+    'conv13': 'res3c_branch2a',
+    'conv14': 'res3c_branch2b',
+    'conv15': 'res3c_branch2c',
+    'conv16': 'res3d_branch2a',
+    'conv17': 'res3d_branch2b',
+    'conv18': 'res3d_branch2c',
+    'conv19': 'res4a_branch2a',
+    'conv20': 'res4a_branch2b',
+    'conv21': 'res4a_branch2c',
+    'conv22': 'res4a_branch1',
+    'conv23': 'res4b_branch2a',
+    'conv24': 'res4b_branch2b',
+    'conv25': 'res4b_branch2c',
+    'conv26': 'res4c_branch2a',
+    'conv27': 'res4c_branch2b',
+    'conv28': 'res4c_branch2c',
+    'conv29': 'res4d_branch2a',
+    'conv30': 'res4d_branch2b',
+    'conv31': 'res4d_branch2c',
+    'conv32': 'res4e_branch2a',
+    'conv33': 'res4e_branch2b',
+    'conv34': 'res4e_branch2c',
+    'conv35': 'res4f_branch2a',
+    'conv36': 'res4f_branch2b',
+    'conv37': 'res4f_branch2c'
+    
+    
+}
 
 def get_last_epoch():
     """
@@ -52,19 +99,44 @@ def restore_weights(weights_best_file, model):
 
         return get_last_epoch() + 1
     else:
-        print("Loading vgg19 weights...")
+        print("Loading model1 weights...")
 
-        model = ResNet50(weights='imagenet',include_top=False,input_shape=(484,484,3))
+        resnet_model = ResNet50(weights='imagenet',include_top=False)
 
         for layer in model.layers:
-            if layer.name in from_vgg:
-                vgg_layer_name = from_vgg[layer.name]
-                layer.set_weights(vgg_model.get_layer(vgg_layer_name).get_weights())
-                print("Loaded VGG19 layer: " + vgg_layer_name)
+            if layer.name in from_resnet.values():
+                resnet_layer_name = from_resnet[layer.name]
+                layer.set_weights(resnet_model.get_layer(resnet_layer_name).get_weights())
+                print("Loaded Resnet layer: " + resnet_layer_name)
 
         return 0
 
 
 if __name__ == '__main__':
     # get the model
-    model = get_training_model(weight_decay)
+    model1,model2 = get_training_model(weight_decay)
+    #Branch1 to be trained on coco-----------------------------------------------
+    
+    #restore weights
+
+    last_epoch = restore_weights(weights_best_file, model1)
+
+    # prepare generators
+
+    curr_dir = os.path.dirname(__file__)
+    annot_path = os.path.join(curr_dir, '../dataset/annotations/person_keypoints_train2017.json')
+    img_dir = os.path.abspath(os.path.join(curr_dir, '../dataset/train2017/'))
+
+    # get dataflow of samples
+
+    df = get_dataflow(
+        annot_path=annot_path,
+        img_dir=img_dir)
+    train_samples = df.size()
+    # get generator of batches
+
+    batch_df = batch_dataflow(df, batch_size)
+    train_gen = gen(batch_df)
+
+    
+    

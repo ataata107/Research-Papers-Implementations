@@ -8,13 +8,14 @@ from __future__ import print_function
 
 import numpy as np
 import warnings
-
+import tensorflow as tf
 from keras.layers import Input
 from keras import layers
 from keras.layers import Dense
 from keras.layers import Activation
 from keras.layers import Flatten,Concatenate
-from keras.layers import Conv2D,Conv2DTranspose
+from keras.layers import Conv2DTranspose,Conv2D, Lambda
+
 from keras.layers import MaxPooling2D
 from keras.layers import GlobalMaxPooling2D
 from keras.layers import ZeroPadding2D
@@ -22,7 +23,10 @@ from keras.layers import AveragePooling2D
 from keras.layers import GlobalAveragePooling2D
 from keras.layers import BatchNormalization
 from keras.models import Model
+from keras.regularizers import l2
+from keras.initializers import random_normal,constant
 from keras.preprocessing import image
+from keras.layers.merge import Multiply
 import keras.backend as K
 from keras.utils import layer_utils
 from keras.utils.data_utils import get_file
@@ -32,8 +36,25 @@ from keras.applications.imagenet_utils import _obtain_input_shape
 from keras.engine.topology import get_source_inputs
 
 
-WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels.h5'
-WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
+#WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels.h5'
+#WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
+
+def crop(dimension, start, end):
+    # Crops (or slices) a Tensor on a given dimension from start to end
+    # example : to crop tensor x[:, :, 5:10]
+    # call slice(2, 5, 10) as you want to crop on the second dimension
+    def func(x):
+        if dimension == 0:
+            return x[start: end]
+        if dimension == 1:
+            return x[:, start: end]
+        if dimension == 2:
+            return x[:, :, start: end]
+        if dimension == 3:
+            return x[:, :, :, start: end]
+        if dimension == 4:
+            return x[:, :, :, :, start: end]
+    return Lambda(func)
 def apply_mask(x, mask1, mask2, num_p, stage, branch):
     
     w_name = "weight_stage%d_L%d" % (stage, branch)
@@ -141,7 +162,7 @@ def id2(input_tensor, kernel_size, filters, stage, block,weight_decay,strides):
     # Returns
         Output tensor for the block.
     """
-
+    #print(input_tensor.shape)
     kernel_reg = l2(weight_decay[0]) if weight_decay else None
     bias_reg = l2(weight_decay[1]) if weight_decay else None
     
@@ -153,8 +174,10 @@ def id2(input_tensor, kernel_size, filters, stage, block,weight_decay,strides):
     conv_name_base = 'res' + str(stage) + block + '_branch'
     bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-    x = Conv2DTranspose(filters1, (4, 4),strides=strides,padding='same', name=conv_name_base + '2a',kernel_regularizer=kernel_reg,bias_regularizer=bias_reg,kernel_initializer=random_normal(stddev=0.01),
+    x = Conv2DTranspose(filters1,(4, 4),strides=strides,padding='same', name=conv_name_base + '2a',kernel_regularizer=kernel_reg,bias_regularizer=bias_reg,
+                        kernel_initializer=random_normal(stddev=0.01),
                bias_initializer=constant(0.0))(input_tensor)
+    #print(x.shape)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
     x = Activation('relu')(x)
 
@@ -172,7 +195,7 @@ def id2(input_tensor, kernel_size, filters, stage, block,weight_decay,strides):
     #x = Activation('relu')(x)
     return x
 
-def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2),weight_decay):
+def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2),weight_decay=(0,0)):
     """conv_block is the block that has a conv layer at shortcut
     # Arguments
         input_tensor: input tensor
@@ -195,6 +218,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2),
         bn_axis = 1
     conv_name_base = 'res' + str(stage) + block + '_branch'
     bn_name_base = 'bn' + str(stage) + block + '_branch'
+
 
     x = Conv2D(filters1, (1, 1), strides=strides,
                name=conv_name_base + '2a',kernel_regularizer=kernel_reg,bias_regularizer=bias_reg,kernel_initializer=random_normal(stddev=0.01),
@@ -223,7 +247,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2),
 
 
 
-def conv_block1(input_tensor, kernel_size, filters, stage, block, strides=(2, 2),weight_decay):
+def conv_block1(input_tensor, kernel_size, filters, stage, block, strides=(2, 2),weight_decay=(0,0)):
     """conv_block is the block that has a conv layer at shortcut
     # Arguments
         input_tensor: input tensor
@@ -275,7 +299,7 @@ def conv_block1(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)
 
 
 
-def get_training_model(weight_decay)
+def get_training_model(weight_decay):
     """Instantiates the ResNet50 architecture.
     Optionally loads weights pre-trained
     on ImageNet. Note that when using TensorFlow,
@@ -323,16 +347,19 @@ def get_training_model(weight_decay)
 
 
     np_branch11= 19
+    #print("done")
     np_branch12 = 38
     np_branch2=34+17*3
-    img_input_shape = (484, 484, 3)
-    vec_input_shape_br1=(int(484/8),int(484/8),34)
-    heat_input_shape_br1=(int(484/8),int(484/8),17)
-    vec_input_shape_br2=(int(484/4),int(484/4),17*3)
-    heat_input_shape_br2=(int(484/4),int(484/4),17)
+    img_input_shape = (368, 368, 3)
+    vec_input_shape_br1=(None,None,38)
+    heat_input_shape_br1=(None,None,19)
+    vec_input_shape_br2=(None,None,17*3)
+    heat_input_shape_br2=(None,None,17)
 
-    inputs = []
-    outputs = []
+    inputs1 = []
+    inputs2=[]
+    outputs_br1 = []
+    outputs_br2=[]
 
     img_input = Input(shape=img_input_shape)
     vec_weight_input_br1 = Input(shape=vec_input_shape_br1)
@@ -340,137 +367,104 @@ def get_training_model(weight_decay)
     vec_weight_input_br2 = Input(shape=vec_input_shape_br2)
     heat_weight_input_br2 = Input(shape=heat_input_shape_br2)
     
-    inputs.append(img_input)
-    inputs.append(vec_weight_input_br1)
-    inputs.append(heat_weight_input_br1)
-    inputs.append(vec_weight_input_br2)
-    inputs.append(heat_weight_input_br2)
+    inputs1.append(img_input)
+    inputs1.append(vec_weight_input_br1)
+    inputs1.append(heat_weight_input_br1)
+    inputs2.append(img_input)
+    inputs2.append(vec_weight_input_br2)
+    inputs2.append(heat_weight_input_br2)
 
     img_normalized = Lambda(lambda x:x /256 - 0.5)(img_input)
+    #print(img_normalized.shape)
     if K.image_data_format() == 'channels_last':
         bn_axis = 3
     else:
         bn_axis = 1
+    kernel_reg = l2(0) 
+    bias_reg = l2(0) 
 
     x = ZeroPadding2D((3, 3))(img_normalized)
+    
     x = Conv2D(64, (7, 7), strides=(2, 2), name='conv1',kernel_regularizer=kernel_reg,bias_regularizer=bias_reg,kernel_initializer=random_normal(stddev=0.01),
                bias_initializer=constant(0.0))(x)
     x = BatchNormalization(axis=bn_axis, name='bn_conv1')(x)
     x = Activation('relu')(x)
     x = MaxPooling2D((3, 3), strides=(2, 2))(x)
 
-    x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1),(weight_decay,0))
-    x = identity_block(x, 3, [64, 64, 256], stage=2, block='b',(weight_decay,0))
-    x = identity_block(x, 3, [64, 64, 256], stage=2, block='c',(weight_decay,0))
+    x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1),weight_decay = (weight_decay,0))
+    
+    x = identity_block(x, 3, [64, 64, 256], stage=2, block='b',weight_decay = (weight_decay,0))
+    x = identity_block(x, 3, [64, 64, 256], stage=2, block='c',weight_decay = (weight_decay,0))
 
-    x = conv_block(x, 3, [128, 128, 512], stage=3, block='a',(weight_decay,0))
-    x = identity_block(x, 3, [128, 128, 512], stage=3, block='b',(weight_decay,0))
-    x = identity_block(x, 3, [128, 128, 512], stage=3, block='c',(weight_decay,0))
-    x = identity_block(x, 3, [128, 128, 512], stage=3, block='d',(weight_decay,0))
+    x = conv_block(x, 3, [128, 128, 512], stage=3, block='a',weight_decay = (weight_decay,0))
+    x = identity_block(x, 3, [128, 128, 512], stage=3, block='b',weight_decay = (weight_decay,0))
+    x = identity_block(x, 3, [128, 128, 512], stage=3, block='c',weight_decay = (weight_decay,0))
+    x = identity_block(x, 3, [128, 128, 512], stage=3, block='d',weight_decay = (weight_decay,0))
 
-    x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a',(weight_decay,0))
-    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='b',(weight_decay,0))
-    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='c',(weight_decay,0))
-    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='d',(weight_decay,0))
-    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='e',(weight_decay,0))
-    x1 = identity_block(x, 3, [256, 256, 1024], stage=4, block='f',(weight_decay,0))
+    x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a',weight_decay = (weight_decay,0))
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='b',weight_decay = (weight_decay,0))
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='c',weight_decay = (weight_decay,0))
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='d',weight_decay = (weight_decay,0))
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='e',weight_decay = (weight_decay,0))
+    
+    x1 = identity_block(x, 3, [256, 256, 1024], stage=4, block='f',weight_decay = (weight_decay,0))
 
-    x = conv_block(x1, 3, [512, 512, 1024], stage=5, block='a',strides=(1,1),(weight_decay,0))
-    x2 = id1(x, 3, [256, 256, 256], stage=5, block='b',(weight_decay,0),strides=(1,1))
-    x = id2(x2, 3, [128, 128, 57], stage=5, block='c',(weight_decay,0),strides=(2,2))
+    x = conv_block(x1, 3, [512, 512, 1024], stage=5, block='a',strides=(1,1),weight_decay = (weight_decay,0))
+    x2 = id1(x, 3, [256, 256, 256], stage=5, block='b',weight_decay = (weight_decay,0),strides=(1,1))
+    #print(x2.shape)
+    x = id2(x2, 3, [128, 128, 57], stage=5, block='c',weight_decay = (weight_decay,0),strides=(2,2))
+    #
     #Slice1
-    heat_1 = K.slice(x, [0,0,0], [62,62,18])
-    w1 = apply_mask(heat_1, vec_weight_input, heat_weight_input, np_branch11, 1, 1)
-    PAF_1 = K.slice(x,[0,0,19],[62,62,56])
-    w2 = apply_mask(stage1_branch1_out, vec_weight_input, heat_weight_input, np_branch12, 1, 1)
-    outputs.append(w1)
-    outputs.append(w2)
+    heat_1 = Lambda(lambda x: x[:,:,:,:19], output_shape=(None,None,None,19),name='bhola')(x)
+    
+    #print(heat_1.shape)
+    #heat_1 = tf.convert_to_tensor(heat_1)
+    #print(heat_1.shape)
+    #print(PAF_1.shape)
+    #print(heat_weight_input_br1.shape)
+    w1 = apply_mask(heat_1, vec_weight_input_br1, heat_weight_input_br1, np_branch11, 1, 1)
+    #print(w1.shape)
+    PAF_1 = Lambda(lambda x: x[:,:,:,19:], output_shape=(None,None,None,38),name='hola')(x)
+    w2 = apply_mask(PAF_1, vec_weight_input_br1, heat_weight_input_br1, np_branch12, 1, 2)
+    #print(w2.shape)
+    outputs_br1.append(w1)
+    outputs_br1.append(w2)
     #Slice1
     y=Concatenate(axis=-1)([x1,x2])
 
-    y = conv_block(y, 3, [512, 512, 1024], stage=6, block='a', strides=(1, 1),(weight_decay,0))
-    y = identity_block(y, 3, [512, 512, 1024], stage=6, block='b',(weight_decay,0))
-    y = identity_block(y, 3, [512, 512, 1024], stage=6, block='c',(weight_decay,0))
+    y = conv_block(y, 3, [512, 512, 1024], stage=6, block='a', strides=(1, 1),weight_decay = (weight_decay,0))
+    y = identity_block(y, 3, [512, 512, 1024], stage=6, block='b',weight_decay = (weight_decay,0))
+    y = identity_block(y, 3, [512, 512, 1024], stage=6, block='c',weight_decay = (weight_decay,0))
 
-    y = conv_block1(y, 4, [512, 512, 1024], stage=7, block='a',(weight_decay,0), strides=(2, 2))
-    y = identity_block(y, 3, [512, 512, 1024], stage=7, block='b',(weight_decay,0))
-    y = identity_block(y, 3, [512, 512, 1024], stage=7, block='c',(weight_decay,0))
+    y = conv_block1(y, 4, [512, 512, 1024], stage=7, block='a',weight_decay = (weight_decay,0), strides=(2, 2))
+    y = identity_block(y, 3, [512, 512, 1024], stage=7, block='b',weight_decay = (weight_decay,0))
+    y = identity_block(y, 3, [512, 512, 1024], stage=7, block='c',weight_decay = (weight_decay,0))
 
     y=Concatenate(axis=-1)([x,y])
     
-    y = conv_block(y, 3, [512, 512, 1024], stage=8, block='a', strides=(1, 1),(weight_decay,0))
-    y = id1(y, 3, [256,256,256], stage=8, block='b',(weight_decay,0),strides=(1, 1))
-    y = id2(y, 5, [128,128,84], stage=8, block='c',(weight_decay,0),strides=(2, 2))
+    y = conv_block(y, 3, [512, 512, 1024], stage=8, block='a', strides=(1, 1),weight_decay = (weight_decay,0))
+    y = id1(y, 3, [256,256,256], stage=8, block='b',weight_decay = (weight_decay,0),strides=(1, 1))
+    y = id2(y, 5, [128,128,84], stage=8, block='c',weight_decay = (weight_decay,0),strides=(2, 2))
 
     #Slice2
-    heat_1 = K.slice(y, [0,0,0], [62,62,20])
-    heat_2  = K.slice(y, [0,0,21], [62,62,41])
-    heat_3 = K.slice(x, [0,0,42], [62,62,62])
-    heat_4 = K.slice(x,[0,0,63],[62,62,83])
+    heat_1 = Lambda(lambda x: x[:,:,:,:21], output_shape=(None,None,None,21))(y)
+    orpm_x  = Lambda(lambda x: x[:,:,:,21:42], output_shape=(None,None,None,21))(y)
+    orpm_y = Lambda(lambda x: x[:,:,:,42:63], output_shape=(None,None,None,21))(y)
+    orpm_z = Lambda(lambda x: x[:,:,:,63:84], output_shape=(None,None,None,21))(y)
+    outputs_br2.append(heat_1)
+    outputs_br2.append(orpm_x)
+    outputs_br2.append(orpm_y)
+    outputs_br2.append(orpm_z)
     #Slice2
 
-    if include_top:
-        x = Flatten()(x)
-        x = Dense(classes, activation='softmax', name='fc1000')(x)
-    else:
-        if pooling == 'avg':
-            x = GlobalAveragePooling2D()(x)
-        elif pooling == 'max':
-            x = GlobalMaxPooling2D()(x)
-
-    # Ensure that the model takes into account
-    # any potential predecessors of `input_tensor`.
-    if input_tensor is not None:
-        inputs = get_source_inputs(input_tensor)
-    else:
-        inputs = img_input
-    # Create model.
-    model = Model(inputs, x, name='resnet50')
-
-    # load weights
-    if weights == 'imagenet':
-        if include_top:
-            weights_path = get_file('resnet50_weights_tf_dim_ordering_tf_kernels.h5',
-                                    WEIGHTS_PATH,
-                                    cache_subdir='models',
-                                    md5_hash='a7b3fe01876f51b976af0dea6bc144eb')
-        else:
-            weights_path = get_file('resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5',
-                                    WEIGHTS_PATH_NO_TOP,
-                                    cache_subdir='models',
-                                    md5_hash='a268eb855778b3df3c7506639542a6af')
-        model.load_weights(weights_path)
-        if K.backend() == 'theano':
-            layer_utils.convert_all_kernels_in_model(model)
-
-        if K.image_data_format() == 'channels_first':
-            if include_top:
-                maxpool = model.get_layer(name='avg_pool')
-                shape = maxpool.output_shape[1:]
-                dense = model.get_layer(name='fc1000')
-                layer_utils.convert_dense_weights_data_format(dense, shape, 'channels_first')
-
-            if K.backend() == 'tensorflow':
-                warnings.warn('You are using the TensorFlow backend, yet you '
-                              'are using the Theano '
-                              'image data format convention '
-                              '(`image_data_format="channels_first"`). '
-                              'For best performance, set '
-                              '`image_data_format="channels_last"` in '
-                              'your Keras config '
-                              'at ~/.keras/keras.json.')
-    return model
+    model1 = Model(inputs=inputs1, outputs=outputs_br1)
+    model2 = Model(inputs=inputs2, outputs=outputs_br2)
 
 
-if __name__ == '__main__':
-    model = ResNet50(include_top=True, weights='imagenet')
+    return model1#,model2
 
-    img_path = 'elephant.jpg'
-    img = image.load_img(img_path, target_size=(224, 224))
-    x = image.img_to_array(img)
-    x = np.expand_dims(x, axis=0)
-    x = preprocess_input(x)
-    print('Input image shape:', x.shape)
 
-    preds = model.predict(x)
-    print('Predicted:', decode_predictions(preds))
+
+model = get_training_model(0)
+
+

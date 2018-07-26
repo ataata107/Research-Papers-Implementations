@@ -343,7 +343,7 @@ def id2(X, f, filters, stage, block, s=2):
     return A, params
 
 
-def ResNet50(input_shape=[484, 484, 3], classes=2):
+def ResNet50(input_shape=[368, 368, 3], classes=2):
 
     input_shape=[None]+ input_shape
     params={}
@@ -417,7 +417,7 @@ def ResNet50(input_shape=[484, 484, 3], classes=2):
     #print(A_5_ib1.shape)
     A_5_ib2,params['stage5']['ib2'] = id2(A_5_ib1, 3, [128, 128, 57],
                                                          stage=5, block='c', s=2)
-    #print(A_5_ib2.shape)
+    print(A_5_ib2.shape)
     #Branch 1 output the slice
     A_slice = tf.split(A_5_ib2,2,axis=1)
     #print(A_slice)
@@ -451,7 +451,7 @@ def ResNet50(input_shape=[484, 484, 3], classes=2):
     A_8_ib2,params['stage5']['ib2'] = id2(A_8_ib1, 5, [128, 128, 84],
                                                          stage=8, block='c', s=2)
 
-    print(A_8_ib2.shape)
+    #print(A_8_ib2.shape)
     #Branch 2 output the slice
     A_slice2 = tf.split(A_8_ib2,2,axis=1)
     A_out = (A_slice2,A_slice)
