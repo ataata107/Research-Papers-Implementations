@@ -111,10 +111,82 @@ def restore_weights(weights_best_file, model):
 
         return 0
 
+def gen(df):
+    """
+    Wrapper around generator. Keras fit_generator requires looping generator.
+    :param df: dataflow instance
+    """
+    while True:
+        for i in df.get_data():
+            yield i
+
+def step_decay(epoch, iterations_per_epoch):
+    """
+    Learning rate schedule - equivalent of caffe lr_policy =  "step"
+    :param epoch:
+    :param iterations_per_epoch:
+    :return:
+    """
+    initial_lrate = base_lr
+    steps = epoch * iterations_per_epoch
+
+    lrate = initial_lrate * math.pow(gamma, math.floor(steps/stepsize))
+
+    return lrate
+
+def get_loss_funcs():
+    """
+    Euclidean loss as implemented in caffe
+    https://github.com/BVLC/caffe/blob/master/src/caffe/layers/euclidean_loss_layer.cpp
+    :return:
+    """
+    def _eucl_loss(x, y):
+        return K.sum(K.square(x - y)) / batch_size / 2
+
+    losses = {}
+    losses["weight_stage1_L1"] = _eucl_loss
+    losses["weight_stage1_L2"] = _eucl_loss
+
+    return losses
+
+def get_lr_multipliers(model):
+    """
+    Setup multipliers for stageN layers (kernel and bias)
+    :param model:
+    :return: dictionary key: layer name , value: multiplier
+    """
+    lr_mult = dict()
+    for layer in model.layers:
+
+        if isinstance(layer, Conv2D):
+
+            # stage = 1
+            if re.match("Mconv\d_stage1.*", layer.name):
+                kernel_name = layer.weights[0].name
+                bias_name = layer.weights[1].name
+                lr_mult[kernel_name] = 1
+                lr_mult[bias_name] = 2
+
+            # stage > 1
+            elif re.match("Mconv\d_stage.*", layer.name):
+                kernel_name = layer.weights[0].name
+                bias_name = layer.weights[1].name
+                lr_mult[kernel_name] = 4
+                lr_mult[bias_name] = 8
+
+            # vgg
+            else:
+                kernel_name = layer.weights[0].name
+                bias_name = layer.weights[1].name
+                lr_mult[kernel_name] = 1
+                lr_mult[bias_name] = 2
+
+    return lr_mult
+
 
 if __name__ == '__main__':
     # get the model
-    model1,model2 = get_training_model(weight_decay)
+    model1 = get_training_model(weight_decay)
     #Branch1 to be trained on coco-----------------------------------------------
     
     #restore weights
@@ -138,5 +210,41 @@ if __name__ == '__main__':
     batch_df = batch_dataflow(df, batch_size)
     train_gen = gen(batch_df)
 
-    
+    # setup lr multipliers for conv layers
+
+    #lr_multipliers = get_lr_multipliers(model1)
+
+    # configure callbacks
+
+    iterations_per_epoch = train_samples // batch_size
+    _step_decay = partial(step_decay,
+                          iterations_per_epoch=iterations_per_epoch
+                          )
+    lrate = LearningRateScheduler(_step_decay)
+    checkpoint = ModelCheckpoint(weights_best_file, monitor='loss',
+                                 verbose=0, save_best_only=False,
+                                 save_weights_only=True, mode='min', period=1)
+    csv_logger = CSVLogger(training_log, append=True)
+    tb = TensorBoard(log_dir=logs_dir, histogram_freq=0, write_graph=True,
+                     write_images=False)
+
+    callbacks_list = [lrate, checkpoint, csv_logger, tb]
+
+    # sgd optimizer with lr multipliers
+
+    multisgd = MultiSGD(lr=base_lr, momentum=momentum, decay=0.0,
+                        nesterov=False)#, lr_mult=lr_multipliers)
+
+    # start training
+
+    loss_funcs = get_loss_funcs()
+    model1.compile(loss=loss_funcs, optimizer=multisgd, metrics=["accuracy"])
+    model1.fit_generator(train_gen,
+                        steps_per_epoch=train_samples // batch_size,
+                        epochs=max_iter,
+                        callbacks=callbacks_list,
+                        # validation_data=val_di,
+                        # validation_steps=val_samples // batch_size,
+                        use_multiprocessing=False,
+                        initial_epoch=last_epoch)
     
