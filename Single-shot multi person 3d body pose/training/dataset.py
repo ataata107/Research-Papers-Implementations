@@ -8,10 +8,10 @@ from tensorpack.dataflow.common import BatchData, MapData
 from tensorpack.dataflow.common import TestDataSpeed
 from tensorpack.dataflow.parallel import PrefetchDataZMQ
 
-from training.augmentors import ScaleAug, RotateAug, CropAug, FlipAug, \
+from augmentors import ScaleAug, RotateAug, CropAug, FlipAug, \
     joints_to_point8, point8_to_joints, AugImgMetadata
-from training.dataflow import CocoDataFlow, JointsLoader
-from training.label_maps import create_heatmap, create_paf
+from dataflow import CocoDataFlow, JointsLoader
+from label_maps import create_heatmap, create_paf
 
 
 ALL_PAF_MASK = np.repeat(
@@ -207,7 +207,7 @@ def batch_dataflow(df, batch_size):
     df = BatchData(df, batch_size, use_list=False)
     df = MapData(df, lambda x: (
         [x[0], x[1], x[2]],
-        [x[3], x[4], x[3], x[4], x[3], x[4], x[3], x[4], x[3], x[4], x[3], x[4]])
+        [x[3], x[4]])#, x[3], x[4], x[3], x[4], x[3], x[4], x[3], x[4], x[3], x[4]])
                  )
     df.reset_state()
     return df
@@ -234,7 +234,7 @@ if __name__ == '__main__':
     df = BatchData(df, batch_size, use_list=False)
     df = MapData(df, lambda x: (
         [x[0], x[1], x[2]],
-        [x[3], x[4], x[3], x[4], x[3], x[4], x[3], x[4], x[3], x[4], x[3], x[4]])
+        [x[3], x[4]])#, x[3], x[4], x[3], x[4], x[3], x[4], x[3], x[4], x[3], x[4]])
     )
 
     TestDataSpeed(df, size=100).start()

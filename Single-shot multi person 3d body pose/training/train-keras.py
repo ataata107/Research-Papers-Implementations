@@ -11,10 +11,11 @@ from keras.callbacks import LearningRateScheduler, ModelCheckpoint, CSVLogger, T
 from keras.layers.convolutional import Conv2D
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
-from model.cmu_model import get_training_model
-from training.optimizers import MultiSGD
-from training.dataset import get_dataflow, batch_dataflow
+from keras import optimizers
+from modelmainkeras import get_training_model
+from keras.optimizers import Adadelta,SGD
+from optimizers import MultiSGD
+from dataset import get_dataflow, batch_dataflow
 
 batch_size = 8
 base_lr = 4e-5 # 2e-5
@@ -104,10 +105,11 @@ def restore_weights(weights_best_file, model):
         resnet_model = ResNet50(weights='imagenet',include_top=False)
 
         for layer in model.layers:
-            if layer.name in from_resnet.values():
-                resnet_layer_name = from_resnet[layer.name]
-                layer.set_weights(resnet_model.get_layer(resnet_layer_name).get_weights())
-                print("Loaded Resnet layer: " + resnet_layer_name)
+            for key,values in from_resnet.items():
+                if layer.name == values:
+                    resnet_layer_name = from_resnet[key]
+                    layer.set_weights(resnet_model.get_layer(resnet_layer_name).get_weights())
+                    print("Loaded Resnet layer: " + resnet_layer_name)
 
         return 0
 
@@ -150,38 +152,44 @@ def get_loss_funcs():
     return losses
 
 def get_lr_multipliers(model):
-    """
-    Setup multipliers for stageN layers (kernel and bias)
-    :param model:
-    :return: dictionary key: layer name , value: multiplier
-    """
-    lr_mult = dict()
-    for layer in model.layers:
 
-        if isinstance(layer, Conv2D):
+        lr_mult = dict()
+        for layer in model.layers:
+                #print("done")
+		#print(layer.weiname)
 
-            # stage = 1
-            if re.match("Mconv\d_stage1.*", layer.name):
-                kernel_name = layer.weights[0].name
-                bias_name = layer.weights[1].name
-                lr_mult[kernel_name] = 1
-                lr_mult[bias_name] = 2
 
-            # stage > 1
-            elif re.match("Mconv\d_stage.*", layer.name):
-                kernel_name = layer.weights[0].name
-                bias_name = layer.weights[1].name
-                lr_mult[kernel_name] = 4
-                lr_mult[bias_name] = 8
+	
+                if isinstance(layer, Conv2D):
+                        if(len(layer.weights)>1):
+                                #print("done")
+                                kernel_name = layer.weights[0].name
+                                bias_name = layer.weights[1].name
+                                lr_mult[kernel_name] = 1
+                                lr_mult[bias_name] = 2
+                        '''
+			# stage = 1
+                        if re.match("Mconv\d_stage1.*", layer.name):
+                                kernel_name = layer.weights[0].name
+                                bias_name = layer.weights[1].name
+                                lr_mult[kernel_name] = 1
+                                lr_mult[bias_name] = 2
+			# stage > 1
+                        elif re.match("Mconv\d_stage.*", layer.name):
+                                kernel_name = layer.weights[0].name
+                                bias_name = layer.weights[1].name
+                                lr_mult[kernel_name] = 4
+                                lr_mult[bias_name] = 8
 
-            # vgg
-            else:
-                kernel_name = layer.weights[0].name
-                bias_name = layer.weights[1].name
-                lr_mult[kernel_name] = 1
-                lr_mult[bias_name] = 2
+                        # vgg
+                        else:
+                                kernel_name = layer.weights[0].name
+                                bias_name = layer.weights[1].name
+                                lr_mult[kernel_name] = 1
+                                lr_mult[bias_name] = 2
+                        '''
 
-    return lr_mult
+        return lr_mult
 
 
 if __name__ == '__main__':
@@ -204,6 +212,7 @@ if __name__ == '__main__':
     df = get_dataflow(
         annot_path=annot_path,
         img_dir=img_dir)
+    
     train_samples = df.size()
     # get generator of batches
 
@@ -212,7 +221,8 @@ if __name__ == '__main__':
 
     # setup lr multipliers for conv layers
 
-    #lr_multipliers = get_lr_multipliers(model1)
+    lr_multipliers = get_lr_multipliers(model1)
+    #print(lr_multipliers)
 
     # configure callbacks
 
@@ -232,13 +242,15 @@ if __name__ == '__main__':
 
     # sgd optimizer with lr multipliers
 
-    multisgd = MultiSGD(lr=base_lr, momentum=momentum, decay=0.0,
-                        nesterov=False)#, lr_mult=lr_multipliers)
-
+    #multisgd = MultiSGD(lr=base_lr, momentum=momentum, decay=0.0,
+                        #nesterov=False, lr_mult=lr_multipliers)
+    Adadelta = Adadelta(lr=1.0, rho=0.9, epsilon=1e-6,decay = 0.005)
     # start training
 
     loss_funcs = get_loss_funcs()
-    model1.compile(loss=loss_funcs, optimizer=multisgd, metrics=["accuracy"])
+    
+    model1.compile(loss=loss_funcs, optimizer=Adadelta, metrics=["accuracy"])
+    print("done")
     model1.fit_generator(train_gen,
                         steps_per_epoch=train_samples // batch_size,
                         epochs=max_iter,

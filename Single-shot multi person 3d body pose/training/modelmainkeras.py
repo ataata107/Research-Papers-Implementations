@@ -8,14 +8,15 @@ from __future__ import print_function
 
 import numpy as np
 import warnings
-import tensorflow as tf
+#import tensorflow as tf
+from convo import Conv2DTranspose
 from keras.layers import Input
 from keras import layers
 from keras.layers import Dense
 from keras.layers import Activation
 from keras.layers import Flatten,Concatenate
-from keras.layers import Conv2DTranspose,Conv2D, Lambda
-
+from keras.layers import Conv2D, Lambda,Deconvolution2D#,Conv2DTranspose
+from keras.layers import UpSampling2D
 from keras.layers import MaxPooling2D
 from keras.layers import GlobalMaxPooling2D
 from keras.layers import ZeroPadding2D
@@ -35,7 +36,7 @@ from keras.applications.imagenet_utils import preprocess_input
 from keras.applications.imagenet_utils import _obtain_input_shape
 from keras.engine.topology import get_source_inputs
 
-
+assert K.image_data_format() == 'channels_last'
 #WEIGHTS_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels.h5'
 #WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
@@ -151,7 +152,7 @@ def id1(input_tensor, kernel_size, filters, stage, block,weight_decay,strides):
     x = Activation('relu')(x)
     return x
 
-def id2(input_tensor, kernel_size, filters, stage, block,weight_decay,strides):
+def id2(input_tensor, kernel_size, filters, stage, block,weight_decay,strides,output_shape = None):
     """The identity block is the block that has no conv layer at shortcut.
     # Arguments
         input_tensor: input tensor
@@ -162,7 +163,8 @@ def id2(input_tensor, kernel_size, filters, stage, block,weight_decay,strides):
     # Returns
         Output tensor for the block.
     """
-    #print(input_tensor.shape)
+    print(input_tensor.shape)
+    #print(output_shape)
     kernel_reg = l2(weight_decay[0]) if weight_decay else None
     bias_reg = l2(weight_decay[1]) if weight_decay else None
     
@@ -173,10 +175,15 @@ def id2(input_tensor, kernel_size, filters, stage, block,weight_decay,strides):
         bn_axis = 1
     conv_name_base = 'res' + str(stage) + block + '_branch'
     bn_name_base = 'bn' + str(stage) + block + '_branch'
+    #x = Deconvolution2D(filters1, 4, 4, output_shape=(None, 46, 46, 128),border_mode='same')(input_tensor)
 
-    x = Conv2DTranspose(filters1,(4, 4),strides=strides,padding='same', name=conv_name_base + '2a',kernel_regularizer=kernel_reg,bias_regularizer=bias_reg,
+    x = Conv2DTranspose(filters1,(4, 4),strides=strides,padding='same', output_shape=output_shape,name=conv_name_base + '2a',kernel_regularizer=kernel_reg,bias_regularizer=bias_reg,
                         kernel_initializer=random_normal(stddev=0.01),
                bias_initializer=constant(0.0))(input_tensor)
+    #x = K.tensorflow_backend.conv2d_transpose(input_tensor, (4,4),output_shape=(None,None,128), strides=strides,padding='same', data_format=None)
+    #print(x.shape)
+    #x=input_tensor
+    #x = UpSampling2D(size=(2, 2), data_format=None)(x)
     #print(x.shape)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
     x = Activation('relu')(x)
@@ -247,7 +254,7 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2),
 
 
 
-def conv_block1(input_tensor, kernel_size, filters, stage, block, strides=(2, 2),weight_decay=(0,0)):
+def conv_block1(input_tensor, kernel_size, filters, stage, block, strides=(2, 2),weight_decay=(0,0),output_shape=None):
     """conv_block is the block that has a conv layer at shortcut
     # Arguments
         input_tensor: input tensor
@@ -277,9 +284,10 @@ def conv_block1(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
     x = Activation('relu')(x)
 
-    x = Conv2DTranspose(filters2, kernel_size, padding='same', strides=strides,
+    x = Conv2DTranspose(filters2, kernel_size, padding='same', strides=strides,output_shape=output_shape,
                name=conv_name_base + '2b',kernel_regularizer=kernel_reg,bias_regularizer=bias_reg,kernel_initializer=random_normal(stddev=0.01),
                bias_initializer=constant(0.0))(x)
+    #print(x.shape)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
     x = Activation('relu')(x)
 
@@ -287,9 +295,10 @@ def conv_block1(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)
                bias_initializer=constant(0.0))(x)
     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
 
-    shortcut = Conv2DTranspose(filters3, kernel_size, strides=strides,padding='same',
+    shortcut = Conv2DTranspose(filters3, kernel_size, strides=strides,padding='same',output_shape=(46,46,1024),
                       name=conv_name_base + '1',kernel_regularizer=kernel_reg,bias_regularizer=bias_reg,kernel_initializer=random_normal(stddev=0.01),
                bias_initializer=constant(0.0))(input_tensor)
+    #print(shortcut.shape)
     shortcut = BatchNormalization(axis=bn_axis, name=bn_name_base + '1')(shortcut)
 
     x = layers.add([x, shortcut])
@@ -412,54 +421,68 @@ def get_training_model(weight_decay):
     x = conv_block(x1, 3, [512, 512, 1024], stage=5, block='a',strides=(1,1),weight_decay = (weight_decay,0))
     x2 = id1(x, 3, [256, 256, 256], stage=5, block='b',weight_decay = (weight_decay,0),strides=(1,1))
     #print(x2.shape)
-    x = id2(x2, 3, [128, 128, 57], stage=5, block='c',weight_decay = (weight_decay,0),strides=(2,2))
+    x3 = id2(x2, 3, [128, 128, 38], stage=5, block='c',weight_decay = (weight_decay,0),strides=(2,2),output_shape = (46,46,128))
+    x4 = id2(x2, 3, [128, 128, 19], stage=6, block='c',weight_decay = (weight_decay,0),strides=(2,2),output_shape = (46,46,128))
+    print(x3.shape)
+    print(x4.shape)
     #
     #Slice1
-    heat_1 = Lambda(lambda x: x[:,:,:,:19], output_shape=(None,None,None,19),name='bhola')(x)
+    #heat_1 = Lambda(lambda x: x[:,:,:,:19], output_shape=(None,None,None,19),name='bhola')(x)
     
     #print(heat_1.shape)
     #heat_1 = tf.convert_to_tensor(heat_1)
     #print(heat_1.shape)
     #print(PAF_1.shape)
     #print(heat_weight_input_br1.shape)
-    w1 = apply_mask(heat_1, vec_weight_input_br1, heat_weight_input_br1, np_branch11, 1, 1)
+    w1 = apply_mask(x4, vec_weight_input_br1, heat_weight_input_br1, np_branch11, 1, 2)
     #print(w1.shape)
     PAF_1 = Lambda(lambda x: x[:,:,:,19:], output_shape=(None,None,None,38),name='hola')(x)
-    w2 = apply_mask(PAF_1, vec_weight_input_br1, heat_weight_input_br1, np_branch12, 1, 2)
+    w2 = apply_mask(x3, vec_weight_input_br1, heat_weight_input_br1, np_branch12, 1, 1)
     #print(w2.shape)
+    
     outputs_br1.append(w2)
     outputs_br1.append(w1)
-    
+    #outputs_br1.append(w2)
+    #outputs_br1.append(w1)
+    #outputs_br1.append(w2)
+    #outputs_br1.append(w1)
+    #outputs_br1.append(w2)
+    #outputs_br1.append(w1)
+    #outputs_br1.append(w2)
+    #outputs_br1.append(w1)
+    #outputs_br1.append(w2)
+    #outputs_br1.append(w1)
+
     #Slice1
-    y=Concatenate(axis=-1)([x1,x2])
+    #y=Concatenate(axis=-1)([x1,x2])
 
-    y = conv_block(y, 3, [512, 512, 1024], stage=6, block='a', strides=(1, 1),weight_decay = (weight_decay,0))
-    y = identity_block(y, 3, [512, 512, 1024], stage=6, block='b',weight_decay = (weight_decay,0))
-    y = identity_block(y, 3, [512, 512, 1024], stage=6, block='c',weight_decay = (weight_decay,0))
+    #y = conv_block(y, 3, [512, 512, 1024], stage=6, block='a', strides=(1, 1),weight_decay = (weight_decay,0))
+    #y = identity_block(y, 3, [512, 512, 1024], stage=6, block='b',weight_decay = (weight_decay,0))
+    #y = identity_block(y, 3, [512, 512, 1024], stage=6, block='c',weight_decay = (weight_decay,0))
 
-    y = conv_block1(y, 4, [512, 512, 1024], stage=7, block='a',weight_decay = (weight_decay,0), strides=(2, 2))
-    y = identity_block(y, 3, [512, 512, 1024], stage=7, block='b',weight_decay = (weight_decay,0))
-    y = identity_block(y, 3, [512, 512, 1024], stage=7, block='c',weight_decay = (weight_decay,0))
+    #y = conv_block1(y, 4, [512, 512, 1024], stage=7, block='a',weight_decay = (weight_decay,0), strides=(2, 2),output_shape=(46,46,512))
+    #y = identity_block(y, 3, [512, 512, 1024], stage=7, block='b',weight_decay = (weight_decay,0))
+    #y = identity_block(y, 3, [512, 512, 1024], stage=7, block='c',weight_decay = (weight_decay,0))
 
-    y=Concatenate(axis=-1)([x,y])
+    #y=Concatenate(axis=-1)([x,y])
     
-    y = conv_block(y, 3, [512, 512, 1024], stage=8, block='a', strides=(1, 1),weight_decay = (weight_decay,0))
-    y = id1(y, 3, [256,256,256], stage=8, block='b',weight_decay = (weight_decay,0),strides=(1, 1))
-    y = id2(y, 5, [128,128,84], stage=8, block='c',weight_decay = (weight_decay,0),strides=(2, 2))
+    #y = conv_block(y, 3, [512, 512, 1024], stage=8, block='a', strides=(1, 1),weight_decay = (weight_decay,0))
+    #y = id1(y, 3, [256,256,256], stage=8, block='b',weight_decay = (weight_decay,0),strides=(1, 1))
+    #y = id2(y, 5, [128,128,84], stage=8, block='c',weight_decay = (weight_decay,0),strides=(2, 2),output_shape=(92,92,128))
 
     #Slice2
-    heat_1 = Lambda(lambda x: x[:,:,:,:21], output_shape=(None,None,None,21))(y)
-    orpm_x  = Lambda(lambda x: x[:,:,:,21:42], output_shape=(None,None,None,21))(y)
-    orpm_y = Lambda(lambda x: x[:,:,:,42:63], output_shape=(None,None,None,21))(y)
-    orpm_z = Lambda(lambda x: x[:,:,:,63:84], output_shape=(None,None,None,21))(y)
-    outputs_br2.append(heat_1)
-    outputs_br2.append(orpm_x)
-    outputs_br2.append(orpm_y)
-    outputs_br2.append(orpm_z)
+    #heat_1 = Lambda(lambda x: x[:,:,:,:21], output_shape=(None,None,None,21))(y)
+    #orpm_x  = Lambda(lambda x: x[:,:,:,21:42], output_shape=(None,None,None,21))(y)
+    #orpm_y = Lambda(lambda x: x[:,:,:,42:63], output_shape=(None,None,None,21))(y)
+    #orpm_z = Lambda(lambda x: x[:,:,:,63:84], output_shape=(None,None,None,21))(y)
+    #outputs_br2.append(heat_1)
+    #outputs_br2.append(orpm_x)
+    #outputs_br2.append(orpm_y)
+    #outputs_br2.append(orpm_z)
     #Slice2
 
     model1 = Model(inputs=inputs1, outputs=outputs_br1)
-    model2 = Model(inputs=inputs2, outputs=outputs_br2)
+    #model2 = Model(inputs=inputs2, outputs=outputs_br2)
 
 
     return model1#,model2

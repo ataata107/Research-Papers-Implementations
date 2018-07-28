@@ -1,7 +1,7 @@
 import math
 import numpy as np
 
-from training.dataflow import JointsLoader
+from dataflow import JointsLoader
 
 
 def create_heatmap(num_maps, height, width, all_joints, sigma, stride):

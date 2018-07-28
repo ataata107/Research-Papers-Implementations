@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 
 from tensorpack.dataflow.common import MapData
 from tensorpack.dataflow.parallel import PrefetchData
-from training.dataflow import CocoDataFlow, JointsLoader
-from training.dataset import read_img, gen_mask, augment, apply_mask, \
+from dataflow import CocoDataFlow, JointsLoader
+from dataset import read_img, gen_mask, augment, apply_mask, \
     create_all_mask, ALL_HEATMAP_MASK, ALL_PAF_MASK
-from training.label_maps import create_heatmap, create_paf
+from label_maps import create_heatmap, create_paf
 
 
 def _get_bgimg(inp, target_size=None):
