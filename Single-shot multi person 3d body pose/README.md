@@ -7,3 +7,5 @@ Paper implementation
   year={2017},
   volume={abs/1712.03453}
 }
+
+Here is the blog explaining the procedure:- https://medium.com/@shazebata/single-shot-multi-person-3d-body-pose-estimation-from-monocular-rgb-input-training-branch-1-957430fff45
