@@ -163,7 +163,7 @@ def id2(input_tensor, kernel_size, filters, stage, block,weight_decay,strides,ou
     # Returns
         Output tensor for the block.
     """
-    print(input_tensor.shape)
+    #print(input_tensor.shape)
     #print(output_shape)
     kernel_reg = l2(weight_decay[0]) if weight_decay else None
     bias_reg = l2(weight_decay[1]) if weight_decay else None
@@ -359,7 +359,7 @@ def get_training_model(weight_decay):
     #print("done")
     np_branch12 = 38
     np_branch2=34+17*3
-    img_input_shape = (368, 368, 3)
+    img_input_shape = (None, None, 3)
     vec_input_shape_br1=(None,None,38)
     heat_input_shape_br1=(None,None,19)
     vec_input_shape_br2=(None,None,17*3)
@@ -421,23 +421,26 @@ def get_training_model(weight_decay):
     x = conv_block(x1, 3, [512, 512, 1024], stage=5, block='a',strides=(1,1),weight_decay = (weight_decay,0))
     x2 = id1(x, 3, [256, 256, 256], stage=5, block='b',weight_decay = (weight_decay,0),strides=(1,1))
     #print(x2.shape)
-    x3 = id2(x2, 3, [128, 128, 38], stage=5, block='c',weight_decay = (weight_decay,0),strides=(2,2),output_shape = (46,46,128))
-    x4 = id2(x2, 3, [128, 128, 19], stage=6, block='c',weight_decay = (weight_decay,0),strides=(2,2),output_shape = (46,46,128))
-    print(x3.shape)
-    print(x4.shape)
+    #x3 = id2(x2, 3, [128, 128, 38], stage=5, block='c',weight_decay = (weight_decay,0),strides=(2,2),output_shape = (46,46,128))
+    #x4 = id2(x2, 3, [128, 128, 19], stage=6, block='c',weight_decay = (weight_decay,0),strides=(2,2),output_shape = (46,46,128))
+    x=   id2(x2, 3, [128, 128, 57], stage=7, block='c',weight_decay = (weight_decay,0),strides=(2,2),output_shape = (46,46,128))
+    #z=x
+    #print(x3.shape)
+    #print(x4.shape)
     #
     #Slice1
-    #heat_1 = Lambda(lambda x: x[:,:,:,:19], output_shape=(None,None,None,19),name='bhola')(x)
+    heat_1 = Lambda(lambda x: x[:,:,:,:19],name='bhola')(x)
     
     #print(heat_1.shape)
     #heat_1 = tf.convert_to_tensor(heat_1)
     #print(heat_1.shape)
     #print(PAF_1.shape)
     #print(heat_weight_input_br1.shape)
-    w1 = apply_mask(x4, vec_weight_input_br1, heat_weight_input_br1, np_branch11, 1, 2)
+    w1 = apply_mask(heat_1, vec_weight_input_br1, heat_weight_input_br1, np_branch11, 1, 2)
     #print(w1.shape)
-    PAF_1 = Lambda(lambda x: x[:,:,:,19:], output_shape=(None,None,None,38),name='hola')(x)
-    w2 = apply_mask(x3, vec_weight_input_br1, heat_weight_input_br1, np_branch12, 1, 1)
+    PAF_1 = Lambda(lambda x: x[:,:,:,19:], name='hola')(x)
+    #print(PAF_1.shape)
+    w2 = apply_mask(PAF_1, vec_weight_input_br1, heat_weight_input_br1, np_branch12, 1, 1)
     #print(w2.shape)
     
     outputs_br1.append(w2)
