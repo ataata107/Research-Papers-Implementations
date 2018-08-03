@@ -9,7 +9,7 @@ from keras.callbacks import ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
 from keras.optimizers import SGD
 from Mylayers import MaxPoolingWithArgmax2D, MaxUnpooling2D
 from keras.applications.imagenet_utils import preprocess_input
-from vgg16 import VGG16
+from model import VGG16
 #encoder decoder
 epoch_steps = int(200/1)
 val_steps = int(50/1)
