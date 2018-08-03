@@ -15,9 +15,9 @@ from keras.models import Model
 from keras.layers import Flatten
 from keras.layers import Dense
 from keras.layers import Input
-from keras.layers import Conv2D
+from keras.layers import Conv2D,Activation
 from keras.layers import MaxPooling2D,BatchNormalization
-from keras.layers import GlobalMaxPooling2D
+from keras.layers import GlobalMaxPooling2D,Reshape
 from keras.layers import GlobalAveragePooling2D
 from Mylayers import MaxPoolingWithArgmax2D, MaxUnpooling2D
 from keras.preprocessing import image
@@ -64,55 +64,115 @@ def VGG16(include_top=True, weights='imagenet',
     # Block 1
     x = Conv2D(64, (3, 3),  padding='same', name='block1_conv1')(img_input)
     x = BatchNormalization(name='block1_bn1')(x)
-    x = Conv2D(64, (3, 3), activation='relu', padding='same', name='block1_conv2')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(64, (3, 3),  padding='same', name='block1_conv2')(x)
     x = BatchNormalization(name='block1_bn2')(x)
+    x=  Activation("relu")(x)
     x, mask_1 = MaxPoolingWithArgmax2D(pool_size)(x)
 
     # Block 2
-    x = Conv2D(128, (3, 3), activation='relu', padding='same', name='block2_conv1')(x)
+    x = Conv2D(128, (3, 3),  padding='same', name='block2_conv1')(x)
     x = BatchNormalization(name='block2_bn1')(x)
-    x = Conv2D(128, (3, 3), activation='relu', padding='same', name='block2_conv2')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(128, (3, 3),  padding='same', name='block2_conv2')(x)
     x = BatchNormalization(name='block2_bn2')(x)
+    x=  Activation("relu")(x)
     x, mask_2 = MaxPoolingWithArgmax2D(pool_size)(x)
 
     # Block 3
-    x = Conv2D(256, (3, 3), activation='relu', padding='same', name='block3_conv1')(x)
+    x = Conv2D(256, (3, 3),  padding='same', name='block3_conv1')(x)
     x = BatchNormalization(name='block3_bn1')(x)
-    x = Conv2D(256, (3, 3), activation='relu', padding='same', name='block3_conv2')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(256, (3, 3),  padding='same', name='block3_conv2')(x)
     x = BatchNormalization(name='block3_bn2')(x)
-    x = Conv2D(256, (3, 3), activation='relu', padding='same', name='block3_conv3')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(256, (3, 3),  padding='same', name='block3_conv3')(x)
     x = BatchNormalization(name='block3_bn3')(x)
+    x=  Activation("relu")(x)
     x, mask_3 = MaxPoolingWithArgmax2D(pool_size)(x)
 
     # Block 4
-    x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block4_conv1')(x)
+    x = Conv2D(512, (3, 3),  padding='same', name='block4_conv1')(x)
     x = BatchNormalization(name='block4_bn1')(x)
-    x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block4_conv2')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(512, (3, 3),  padding='same', name='block4_conv2')(x)
     x = BatchNormalization(name='block4_bn2')(x)
-    x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block4_conv3')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(512, (3, 3),  padding='same', name='block4_conv3')(x)
     x = BatchNormalization(name='block4_bn3')(x)
+    x=  Activation("relu")(x)
     x, mask_4 = MaxPoolingWithArgmax2D(pool_size)(x)
 
     # Block 5
-    x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block5_conv1')(x)
+    x = Conv2D(512, (3, 3),  padding='same', name='block5_conv1')(x)
     x = BatchNormalization(name='block5_bn1')(x)
-    x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block5_conv2')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(512, (3, 3),  padding='same', name='block5_conv2')(x)
     x = BatchNormalization(name='block5_bn2')(x)
-    x = Conv2D(512, (3, 3), activation='relu', padding='same', name='block5_conv3')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(512, (3, 3),  padding='same', name='block5_conv3')(x)
     x = BatchNormalization(name='block5_bn3')(x)
+    x=  Activation("relu")(x)
     x, mask_5 = MaxPoolingWithArgmax2D(pool_size)(x)
 
-    if include_top:
-        # Classification block
-        x = Flatten(name='flatten')(x)
-        x = Dense(4096, activation='relu', name='fc1')(x)
-        x = Dense(4096, activation='relu', name='fc2')(x)
-        x = Dense(classes, activation='softmax', name='predictions')(x)
-    else:
-        if pooling == 'avg':
-            x = GlobalAveragePooling2D()(x)
-        elif pooling == 'max':
-            x = GlobalMaxPooling2D()(x)
+    #Decoder
+    # Block6
+    x = MaxUnpooling2D(pool_size)([x, mask_5])
+    x = Conv2D(512, (3, 3),  padding='same', name='block6_conv1')(x)
+    x = BatchNormalization(name='block6_bn1')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(512, (3, 3),  padding='same', name='block6_conv2')(x)
+    x = BatchNormalization(name='block6_bn2')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(512, (3, 3),  padding='same', name='block6_conv3')(x)
+    x = BatchNormalization(name='block6_bn3')(x)
+    x=  Activation("relu")(x)
+
+    #Block7
+    x = MaxUnpooling2D(pool_size)([x, mask_4])
+    x = Conv2D(512, (3, 3),  padding='same', name='block7_conv1')(x)
+    x = BatchNormalization(name='block7_bn1')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(512, (3, 3),  padding='same', name='block7_conv2')(x)
+    x = BatchNormalization(name='block7_bn2')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(256, (3, 3),  padding='same', name='block7_conv3')(x)
+    x = BatchNormalization(name='block7_bn3')(x)
+    x=  Activation("relu")(x)
+
+    #Block8
+    x = MaxUnpooling2D(pool_size)([x, mask_3])
+    x = Conv2D(256, (3, 3),  padding='same', name='block8_conv1')(x)
+    x = BatchNormalization(name='block8_bn1')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(256, (3, 3),  padding='same', name='block8_conv2')(x)
+    x = BatchNormalization(name='block8_bn2')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(128, (3, 3),  padding='same', name='block8_conv3')(x)
+    x = BatchNormalization(name='block8_bn3')(x)
+    x=  Activation("relu")(x)
+
+    #Block9
+    x = MaxUnpooling2D(pool_size)([x, mask_2])
+    x = Conv2D(128, (3, 3),  padding='same', name='block9_conv1')(x)
+    x = BatchNormalization(name='block9_bn1')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(64, (3, 3),  padding='same', name='block9_conv2')(x)
+    x = BatchNormalization(name='block9_bn2')(x)
+    x=  Activation("relu")(x)
+
+    #Block10
+    x = MaxUnpooling2D(pool_size)([x, mask_1])
+    x = Conv2D(64, (3, 3),  padding='same', name='block10_conv1')(x)
+    x = BatchNormalization(name='block10_bn1')(x)
+    x=  Activation("relu")(x)
+    x = Conv2D(2, (1, 1),  padding='valid', name='block10_conv2')(x)
+    x = BatchNormalization(name='block10_bn2')(x)
+    x = Reshape((input_shape[0] * input_shape[1], 2), input_shape=(input_shape[0], input_shape[1], 2))(x)
+    x = Activation('softmax')(x)
+    
+
+    
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
