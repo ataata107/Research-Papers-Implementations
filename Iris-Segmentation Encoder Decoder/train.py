@@ -36,4 +36,4 @@ callbacks = [ModelCheckpoint('bestmodel.h5', monitor='val_loss', save_best_only=
 
 model.compile(loss="categorical_crossentropy", optimizer=stochastic, metrics=["accuracy"])
 #model.fit_generator(train_gen, steps_per_epoch=epoch_steps, epochs=200, validation_data=val_gen, validation_steps=val_steps,callbacks=callbacks)
-model.fit(x=x, y=y, batch_size=1, epochs=10, verbose=1, callbacks=callbacks, validation_split=0.0, validation_data=(x1,y1), shuffle=True, class_weight=None, sample_weight=None, initial_epoch=0, steps_per_epoch=None, validation_steps=None)
+model.fit(x=x, y=y, batch_size=1, epochs=500, verbose=1, callbacks=callbacks, validation_split=0.0, validation_data=(x1,y1), shuffle=True, class_weight=None, sample_weight=None, initial_epoch=0, steps_per_epoch=None, validation_steps=None)
