@@ -168,8 +168,9 @@ def VGG16(include_top=True, weights='imagenet',
     x=  Activation("relu")(x)
     x = Conv2D(2, (1, 1),  padding='valid', name='block10_conv2')(x)
     x = BatchNormalization(name='block10_bn2')(x)
-    x = Reshape((input_shape[0] * input_shape[1], 2), input_shape=(input_shape[0], input_shape[1], 2))(x)
+    x = Reshape((input_shape[0] * input_shape[1], 2))(x)
     x = Activation('softmax')(x)
+    print(x.shape)
     
 
     
