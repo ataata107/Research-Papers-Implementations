@@ -14,7 +14,7 @@ import warnings
 from keras.models import Model
 from keras.layers import Flatten
 from keras.layers import Dense
-from keras.layers import Input
+from keras.layers import Input,UpSampling2D
 from keras.layers import Conv2D,Activation
 from keras.layers import MaxPooling2D,BatchNormalization
 from keras.layers import GlobalMaxPooling2D,Reshape
@@ -117,7 +117,8 @@ def VGG16(include_top=True, weights='imagenet',
 
     #Decoder
     # Block6
-    x = MaxUnpooling2D(pool_size)([x, mask_5])
+    #x = MaxUnpooling2D(pool_size)([x, mask_5])
+    x = UpSampling2D(size=(2, 2), data_format=None)(x)
     x = Conv2D(512, (3, 3),  padding='same', name='block6_conv1')(x)
     x = BatchNormalization(name='block6_bn1')(x)
     x=  Activation("relu")(x)
@@ -129,7 +130,8 @@ def VGG16(include_top=True, weights='imagenet',
     x=  Activation("relu")(x)
 
     #Block7
-    x = MaxUnpooling2D(pool_size)([x, mask_4])
+    #x = MaxUnpooling2D(pool_size)([x, mask_4])
+    x = UpSampling2D(size=(2, 2), data_format=None)(x)
     x = Conv2D(512, (3, 3),  padding='same', name='block7_conv1')(x)
     x = BatchNormalization(name='block7_bn1')(x)
     x=  Activation("relu")(x)
@@ -141,7 +143,8 @@ def VGG16(include_top=True, weights='imagenet',
     x=  Activation("relu")(x)
 
     #Block8
-    x = MaxUnpooling2D(pool_size)([x, mask_3])
+    #x = MaxUnpooling2D(pool_size)([x, mask_3])
+    x = UpSampling2D(size=(2, 2), data_format=None)(x)
     x = Conv2D(256, (3, 3),  padding='same', name='block8_conv1')(x)
     x = BatchNormalization(name='block8_bn1')(x)
     x=  Activation("relu")(x)
@@ -153,7 +156,8 @@ def VGG16(include_top=True, weights='imagenet',
     x=  Activation("relu")(x)
 
     #Block9
-    x = MaxUnpooling2D(pool_size)([x, mask_2])
+    #x = MaxUnpooling2D(pool_size)([x, mask_2])
+    x = UpSampling2D(size=(2, 2), data_format=None)(x)
     x = Conv2D(128, (3, 3),  padding='same', name='block9_conv1')(x)
     x = BatchNormalization(name='block9_bn1')(x)
     x=  Activation("relu")(x)
@@ -162,7 +166,8 @@ def VGG16(include_top=True, weights='imagenet',
     x=  Activation("relu")(x)
 
     #Block10
-    x = MaxUnpooling2D(pool_size)([x, mask_1])
+    #x = MaxUnpooling2D(pool_size)([x, mask_1])
+    x = UpSampling2D(size=(2, 2), data_format=None)(x)
     x = Conv2D(64, (3, 3),  padding='same', name='block10_conv1')(x)
     x = BatchNormalization(name='block10_bn1')(x)
     x=  Activation("relu")(x)

@@ -15,9 +15,9 @@ from generator import data_gen_small
 #encoder decoder
 epoch_steps = 6
 val_steps = 3
-image_input = Input(shape=(480, 360, 3))
+image_input = Input(shape=(256, 256, 3))
 #print(image_input.shape)
-model = VGG16(input_tensor=image_input, include_top=False,input_shape=(480,360,3),weights='imagenet')
+model = VGG16(input_tensor=image_input, include_top=False,input_shape=(256,256,3),weights='imagenet')
 #model.summary()
 
 train_list = pd.read_csv('./train.csv',header=None)
@@ -28,9 +28,9 @@ trainmsk_dir = './training_mask'
 valimg_dir = './validating_dataset'
 valmsk_dir = './validating_mask'
 
-x,y = data_gen_small(trainimg_dir, trainmsk_dir, 6, batch_size=1, dims=[480, 360], n_labels =2)
-print(x.shape)
-x1,y1 = data_gen_small(valimg_dir, valmsk_dir, 3, batch_size=1, dims=[480, 360], n_labels =2)
+x,y = data_gen_small(trainimg_dir, trainmsk_dir, 6, batch_size=1, dims=[256, 256], n_labels =2)
+#print(x.shape)
+x1,y1 = data_gen_small(valimg_dir, valmsk_dir, 3, batch_size=1, dims=[256, 256], n_labels =2)
 stochastic = SGD(lr=0.001, momentum=0.9, decay=0.0, nesterov=False)
 callbacks = [ModelCheckpoint('bestmodel.h5', monitor='val_loss', save_best_only=True)]
 

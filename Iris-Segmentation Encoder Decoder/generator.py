@@ -30,7 +30,7 @@ def data_gen_small(img_dir, mask_dir, lists, batch_size, dims, n_labels):
         # images
         img_path = data_path + '/'+ dataset
         #print(img_path)
-        img = image.load_img(img_path, target_size=(480, 360))
+        img = image.load_img(img_path, target_size=(256, 256))
         x = image.img_to_array(img)
         x = np.expand_dims(x, axis=0)
         x = preprocess_input(x)
@@ -43,8 +43,10 @@ def data_gen_small(img_dir, mask_dir, lists, batch_size, dims, n_labels):
         
         mask_path = mask_dir + '/'+ masks[i]
         #print(mask_path)
-        original_mask = image.load_img(mask_path, target_size=(480, 360))
+        original_mask = image.load_img(mask_path, target_size=(256, 256))
         x1 = image.img_to_array(original_mask)
+        #x1 = np.expand_dims(x1, axis=0)
+        x1 = preprocess_input(x1)
         x1 = x1/255
         x1 = x1[:,:,0]
             #print('Input mask shape:', x1.shape)
@@ -57,13 +59,15 @@ def data_gen_small(img_dir, mask_dir, lists, batch_size, dims, n_labels):
     imgs=np.rollaxis(imgs,1,0)
     #print (imgs.shape)
     imgs=imgs[0]
-    #print (imgs.shape)
+    print (imgs.shape)
     labels = np.array(labels)
-    #print(labels.shape)
+    labels=np.rollaxis(labels,1,0)
+    labels=labels[0]
+    print(labels.shape)
     return imgs, labels
     
 
-#white 1 black 0
+#white 1 black 0 index
 def catelab(labels, dims, n_labels):
     x = np.zeros([dims[0], dims[1], n_labels])
     #print(dims[0],dims[1])
@@ -74,4 +78,5 @@ def catelab(labels, dims, n_labels):
             #print(labels[i][j])
             x[i, j, int(labels[i][j])]=1
     x = x.reshape(dims[0] * dims[1], n_labels)
+    x = np.expand_dims(x, axis=0)
     return x
