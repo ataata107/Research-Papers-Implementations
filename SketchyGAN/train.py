@@ -9,7 +9,7 @@ from PIL import Image
 from torchvision.models import inception_v3
 from customdataset import CustomDataset
 from mru import MRUGenerator, MRU_Discriminator
-fro customloss import FocalLoss, PerceptualLoss
+from customloss import FocalLoss, PerceptualLoss
 import os
 
 # Define device
@@ -21,6 +21,7 @@ lr = 0.0001
 batch_size = 8
 epochs = 50
 img_size = 64
+train_img_paths = "./data"
 
 # define custom transform to resize images and sketches
 
@@ -39,7 +40,7 @@ dataset = CustomDataset(train_img_paths, transform=transform)
 
 # define data loader to return both image and their corresponding sketches
 
-dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # define generator and discriminator instances
 
@@ -62,7 +63,7 @@ optimizer_G = torch.optim.Adam(generator.parameters(), lr=lr, betas=(0.5, 0.999)
 optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=lr*2, betas=(0.5, 0.999))
 
 # train the model
-fixed_noise = torch.randn(64, 3, 64, 64).to(device)
+fixed_noise = torch.randn(batch_size, 1, 64, 64).to(device)
 for epoch in range(epochs):
     for batch_idx, (img, sketch,real_label_class) in enumerate(train_loader):
         img = img.to(device)
@@ -81,10 +82,10 @@ for epoch in range(epochs):
         discriminator.zero_grad()
         
         # generate fake image from sketch using generator
-        fake_img = generator(fixed_noise, sketch, sketch1, sketch2, sketch3)
-        fake_img1 = torch.nn.functional.interpolate(fake_sketch.detach(), scale_factor=0.5, mode='bilinear').to(device)
-        fake_img2 = torch.nn.functional.interpolate(fake_sketch.detach(), scale_factor=0.5, mode='bilinear').to(device)
-        fake_img3 = torch.nn.functional.interpolate(fake_sketch.detach(), scale_factor=0.5, mode='bilinear').to(device)
+        fake_img = generator(fixed_noise, sketch, sktch1, sktch2, sktch3)
+        fake_img1 = torch.nn.functional.interpolate(fake_img.detach(), scale_factor=0.5, mode='bilinear').to(device)
+        fake_img2 = torch.nn.functional.interpolate(fake_img.detach(), scale_factor=0.5, mode='bilinear').to(device)
+        fake_img3 = torch.nn.functional.interpolate(fake_img.detach(), scale_factor=0.5, mode='bilinear').to(device)
         
         # train discriminator with real and fake images
         real_pred, real_aux_classes = discriminator(img, img1, img2, img3)

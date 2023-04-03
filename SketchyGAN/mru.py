@@ -110,17 +110,17 @@ class MRU_Discriminator(nn.Module):
         )
         
         self.final_layer = nn.Sequential(
-            nn.Conv2d(512, 1, kernel_size=8, stride=1, padding=1),
+            nn.Conv2d(512, 1, kernel_size=8, stride=1, padding=0),
             nn.Sigmoid()
         )
         self.aux_layer = nn.Sequential(
-            nn.Conv2d(512, num_classes, kernel_size=8, stride=1, padding=1),
+            nn.Conv2d(512, num_classes, kernel_size=8, stride=1, padding=0),
             nn.Softmax(dim=1)
         )
 
-    def forward(self, x,img,img1,img2,img3):
+    def forward(self, img,img1,img2,img3):
         # Downsample by a factor of 2
-        x = self.mru1(x,img)
+        x = self.mru1(img,img)
         # Downsample by a factor of 2
         x = self.mru2(x,img1)
         # Downsample by a factor of 2
@@ -130,4 +130,4 @@ class MRU_Discriminator(nn.Module):
         # Apply final layer and aux_layer
         x = self.final_layer(x)
         aux_classes = self.aux_layer(x)
-        return x, aux_classes
+        return torch.squeeze(x), torch.squeeze(aux_classes)
