@@ -64,13 +64,13 @@ class MRUGenerator(nn.Module): #3
         self.down1 = MRU_downsample(1, 64,1)
         self.down2 = MRU_downsample(64, 128,1)
         self.down3 = MRU_downsample(128, 256,1)
-        self.down4 = MRU_downsample(256, 512,1)
+        self.down4 = MRU_downsample(256, 512,1,False)
         
         # Define 4 MRU_upsample layers
         self.up1 = MRU_upsample(512, 256,1)
         self.up2 = MRU_upsample(256, 128,1)
         self.up3 = MRU_upsample(128, 64,1)
-        self.up4 = MRU_upsample(64, self.out_channels,1)
+        self.up4 = MRU_upsample(64, self.out_channels,1,False)
         
     def forward(self, noise,img,img1,img2,img3):
         #img 1X3X64X64
@@ -79,13 +79,13 @@ class MRUGenerator(nn.Module): #3
         x1 = self.down1(noise,img) # Output shape: [1, 64, 32, 32]
         x2 = self.down2(x1,img1) # Output shape: [1, 128, 16, 16]
         x3 = self.down3(x2,img2) # Output shape: [1, 256, 8, 8]
-        x4 = self.down4(x3,img3,False) # Output shape: [1, 512, 8, 8]
+        x4 = self.down4(x3,img3) # Output shape: [1, 512, 8, 8]
         
         # Upsample path
         x5 = self.up1(x4, img3) # Output shape: [1, 256, 16, 16]
         x6 = self.up2(x5, img2) # Output shape: [1, 128, 32, 32]
         x7 = self.up3(x6, img1) # Output shape: [1, 64, 64, 64]
-        y = self.up4(x7, img, False) # Output shape: [1, self.out_channels, 64, 64]
+        y = self.up4(x7, img) # Output shape: [1, self.out_channels, 64, 64]
         
         return y
 
@@ -106,7 +106,7 @@ class MRU_Discriminator(nn.Module):
         )
         
         self.mru4 = nn.Sequential(
-            MRU_downsample(256, 512)
+            MRU_downsample(256, 512,3,False)
         )
         
         self.final_layer = nn.Sequential(
