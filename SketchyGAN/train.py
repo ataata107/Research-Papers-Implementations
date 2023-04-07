@@ -85,7 +85,7 @@ for epoch in range(epochs):
         fake_img = generator(fixed_noise, sketch, sktch1, sktch2, sktch3)
         fake_img1 = torch.nn.functional.interpolate(fake_img.detach(), scale_factor=0.5, mode='bilinear').to(device)
         fake_img2 = torch.nn.functional.interpolate(fake_img.detach(), scale_factor=0.25, mode='bilinear').to(device)
-        fake_img3 = torch.nn.functional.interpolate(fake_img.detach(), scale_factor=0.124, mode='bilinear').to(device)
+        fake_img3 = torch.nn.functional.interpolate(fake_img.detach(), scale_factor=0.125, mode='bilinear').to(device)
         
         # train discriminator with real and fake images
         real_pred, real_aux_classes = discriminator(img, img1, img2, img3)
